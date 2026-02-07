@@ -32,3 +32,11 @@ cas on git main via zig v0.16.0-dev.2490+fce7878a9 took 52s
 > zig build run
 info: arg: /home/fedhinen/Desktop/cas/zig-out/bin/cas
 Test derivative, ((5 * (20 * x)) + ((5 * x) * 20))
+
+ya consegui simplificar la expresion al nivel que queria, sabia que reglas tenia que aplicar, normalizar pense que ya estaba pero resulto que necesitaba reaplicar la normalizacion para dejar las constantes del lado izquierdo de nuevo al simplificar, ya quedo la derivada de prueba
+
+> zig build run
+info: arg: /home/fedhinen/Desktop/cas/zig-out/bin/cas
+Test derivative, (200 * x)
+
+ahora hay que agregar mas casos para asegurar que funcione y ver que no funciona
