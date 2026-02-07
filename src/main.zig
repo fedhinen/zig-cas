@@ -42,3 +42,19 @@ pub fn main(init: std.process.Init) !void {
 
     try stdout_writer.flush();
 }
+
+test "derivative of 5x = 5" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator: std.mem.Allocator = arena.allocator();
+
+    const five_expr = try Expr.createLiteral(allocator, 5);
+    const x_expr = try Expr.createVar(allocator, 'x');
+    const expr_test = try Expr.createMul(allocator, five_expr, x_expr);
+
+    const derivative = try expr_test.derivative('x', allocator);
+    const simplified = try derivative.simplify(allocator);
+
+    try std.testing.expect(simplified.isConstantValue(5));
+}
