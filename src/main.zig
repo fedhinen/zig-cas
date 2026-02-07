@@ -8,7 +8,7 @@ const BinOp = enum {
     Subtract,
     Multiply,
     Divide,
-    // Power, // For future extension
+    Power,
 };
 
 const ExprTy = enum {
@@ -47,6 +47,7 @@ const Expr = union(ExprTy) {
                     BinOp.Subtract => left_val - right_val,
                     BinOp.Multiply => left_val * right_val,
                     BinOp.Divide => @divFloor(left_val, right_val),
+                    BinOp.Power => std.math.pow(i32, left_val, right_val),
                 };
             },
         };
@@ -72,9 +73,10 @@ const Expr = union(ExprTy) {
 
                 return switch (b.op) {
                     // (f + g)' = f' + g'
-                    BinOp.Add => Expr{ .Binary = BinaryExpr{ .op = BinOp.Add, .left = left_deriv, .right = right_deriv } },
+                    BinOp.Add => Expr{ .Binary = .{ .op = .Add, .left = left_deriv, .right = right_deriv } },
                     // (f - g)' = f' - g'
-                    BinOp.Subtract => Expr{ .Binary = BinaryExpr{ .op = BinOp.Subtract, .left = left_deriv, .right = right_deriv } },
+                    BinOp.Subtract => Expr{ .Binary = .{ .op = .Subtract, .left = left_deriv, .right = right_deriv } },
+                    // (f * g)' = f' * g + f * g'
                     BinOp.Multiply => {
                         // Necesitamos crear los nodos para (f' * g) y (f * g') en el heap
                         const left_node = try alloc.create(Expr);
@@ -85,7 +87,7 @@ const Expr = union(ExprTy) {
 
                         return Expr{ .Binary = .{ .op = .Add, .left = left_node, .right = right_node } };
                     },
-
+                    // (f / g)' = (f' * g - f * g') / (g * g)
                     BinOp.Divide => {
                         // Numerador parte 1: (f' * g)
                         const n1 = try alloc.create(Expr);
@@ -105,7 +107,116 @@ const Expr = union(ExprTy) {
 
                         return Expr{ .Binary = .{ .op = .Divide, .left = numerator, .right = denominator } };
                     },
+                    // (f ^ n)' = n * f ^ ( n - 1 ) * f' --- f is left, n is right
+                    BinOp.Power => {
+                        // n
+                        const n_value = try alloc.create(Expr);
+                        n_value.* = Expr{ .Literal = b.right.Literal };
+
+                        // n - 1
+                        const n_one = try alloc.create(Expr);
+                        n_one.* = Expr{ .Literal = 1 };
+
+                        const exp_value = try alloc.create(Expr);
+                        exp_value.* = Expr{ .Binary = .{ .op = .Subtract, .left = b.right, .right = n_one } };
+
+                        // f ^ ( n - 1 )
+                        const base = try alloc.create(Expr);
+                        base.* = Expr{ .Binary = .{ .op = .Power, .left = b.left, .right = exp_value } };
+
+                        // n * f ^ ( n - 1 )
+                        const power_expr = try alloc.create(Expr);
+                        power_expr.* = Expr{ .Binary = .{ .op = .Multiply, .left = n_value, .right = base } };
+
+                        // n * f ^ ( n - 1 ) * f'
+                        return Expr{ .Binary = .{ .op = .Multiply, .left = power_expr, .right = left_deriv } };
+                    },
                 };
+            },
+        };
+    }
+    fn isLiteral(self: *const Expr, val: i32) bool {
+        return switch (self.*) {
+            Expr.Literal => |l| l == val,
+            else => false,
+        };
+    }
+    fn simplify(self: *const Expr, alloc: std.mem.Allocator) !Expr {
+        return switch (self.*) {
+            Expr.Variable, Expr.Literal => self.*,
+            Expr.Binary => |b| {
+                const left_expr = try b.left.simplify(alloc);
+                const right_expr = try b.right.simplify(alloc);
+
+                // constantes
+                if (left_expr == .Literal and right_expr == .Literal) {
+                    const left_val = left_expr.Literal;
+                    const right_val = right_expr.Literal;
+
+                    const val = switch (b.op) {
+                        BinOp.Add => left_val + right_val,
+                        BinOp.Subtract => left_val - right_val,
+                        BinOp.Multiply => left_val * right_val,
+                        BinOp.Divide => @divFloor(left_val, right_val),
+                        BinOp.Power => std.math.pow(i32, left_val, right_val),
+                    };
+
+                    return Expr{ .Literal = val };
+                }
+
+                // identidades
+                switch (b.op) {
+                    BinOp.Add => {
+                        // x + 0 = x
+                        if (right_expr.isLiteral(0)) return left_expr;
+                        // 0 + x = x
+                        if (left_expr.isLiteral(0)) return right_expr;
+                    },
+                    BinOp.Subtract => {
+                        // x - 0 = x
+                        if (right_expr.isLiteral(0)) return left_expr;
+                        // 0 - x = -x
+
+                        if (left_expr.isLiteral(0)) {
+                            const neg_one = try alloc.create(Expr);
+                            neg_one.* = Expr{ .Literal = -1 };
+
+                            const right_expr_neg = try alloc.create(Expr);
+                            right_expr_neg.* = right_expr;
+
+                            return Expr{ .Binary = .{ .op = .Multiply, .left = neg_one, .right = right_expr_neg } };
+                        }
+
+                        // x - x = 0 comparar arboles completos TODO
+                    },
+                    BinOp.Multiply => {
+                        if (left_expr.isLiteral(0) or right_expr.isLiteral(0)) return Expr{ .Literal = 0 };
+
+                        if (left_expr.isLiteral(1)) return right_expr;
+
+                        if (right_expr.isLiteral(1)) return left_expr;
+                    },
+                    BinOp.Divide => {
+                        if (right_expr.isLiteral(1)) return left_expr;
+
+                        // que sucede con x/0, panic?
+                        // que sucede con x/x = 1, comparacion de expr pendiente
+                    },
+                    BinOp.Power => {
+                        // x ^ 0 = 1
+                        if (right_expr.isLiteral(0)) return Expr{ .Literal = 1 };
+                        // x ^ 1 = x
+                        if (right_expr.isLiteral(1)) return left_expr;
+                    },
+                }
+
+                const left_ptr = try alloc.create(Expr);
+                left_ptr.* = left_expr;
+
+                const right_ptr = try alloc.create(Expr);
+                right_ptr.* = right_expr;
+
+                return Expr{ .Binary = BinaryExpr{ .left = left_ptr, .right = right_ptr, .op = b.op } };
             },
         };
     }
@@ -122,6 +233,7 @@ const Expr = union(ExprTy) {
                     BinOp.Subtract => "-",
                     BinOp.Multiply => "*",
                     BinOp.Divide => "/",
+                    BinOp.Power => "^",
                 };
                 return try std.fmt.allocPrint(alloc, "({s} {s} {s})", .{ left_str, op_str, right_str });
             },
@@ -149,28 +261,10 @@ pub fn main(init: std.process.Init) !void {
     var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
     const stdout_writer = &stdout_file_writer.interface;
 
-    var vars: std.AutoHashMap(u8, i32) = .init(arena);
-    defer vars.deinit();
-    try vars.put('x', 10);
-    try vars.put('y', 20);
-
-    const expr_with_vars = Expr{ .Binary = BinaryExpr{
-        .op = BinOp.Add,
-        .left = &Expr{ .Variable = 'x' },
-        .right = &Expr{ .Variable = 'y' },
-    } };
-
-    try stdout_writer
-        .print("Result with variables: {d}\n", .{expr_with_vars
-        .eval(&vars)});
-
-    const derivative_expr = try expr_with_vars.derive('x', arena); // 1 + 0
-    const derivative_str = try derivative_expr.stringify(arena);
-    try stdout_writer.print("Result with variables, derived: {s}\n", .{derivative_str});
-
     const to_derivative_expr = Expr{ .Binary = BinaryExpr{ .op = BinOp.Multiply, .left = &Expr{ .Binary = BinaryExpr{ .op = BinOp.Multiply, .left = &Expr{ .Literal = 5 }, .right = &Expr{ .Variable = 'x' } } }, .right = &Expr{ .Binary = BinaryExpr{ .op = BinOp.Multiply, .left = &Expr{ .Literal = 20 }, .right = &Expr{ .Variable = 'x' } } } } };
     const to_derivative = try to_derivative_expr.derive('x', arena);
-    const to_derivative_str = try to_derivative.stringify(arena);
+    const simplified_derivative = try to_derivative.simplify(arena);
+    const to_derivative_str = try simplified_derivative.stringify(arena);
     try stdout_writer.print("Result derivative, {s}\n", .{to_derivative_str});
 
     try stdout_writer.flush();
