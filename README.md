@@ -22,3 +22,6 @@ ya llevo un buen avance en la simplificación, creo lo siguiente sera agrupar to
 5 * (20 * x) = (5 * 20) * x = 100 * x
 
 Programarlo no se que tan complicado es
+
+---
+Decidi reorganizar el codigo antes de seguir avanzando, porque se estaba volviendo un caos extender las cosas, ya esta mejor creo yo, como para empezar la simplificación nuevamente
