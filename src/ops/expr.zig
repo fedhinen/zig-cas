@@ -96,10 +96,18 @@ pub const Expr = union(ExprTy) {
         e.* = Expr{ .Variable = name };
         return e;
     }
-
+    pub fn swap(lhs: *Expr, rhs: *Expr) struct { lhs: *Expr, rhs: *Expr } {
+        if (rhs.isConstant() and !lhs.isConstant()) {
+            return .{ .lhs = rhs, .rhs = lhs };
+        } else {
+            return .{ .lhs = lhs, .rhs = rhs };
+        }
+    }
     pub fn createMul(alloc: std.mem.Allocator, lhs: *Expr, rhs: *Expr) !*Expr {
+        const swapped = swap(lhs, rhs);
+
         const m = try alloc.create(mul.MultiplyExpression);
-        m.* = .{ .lhs = lhs, .rhs = rhs };
+        m.* = .{ .lhs = swapped.lhs, .rhs = swapped.rhs };
 
         const e = try alloc.create(Expr);
         e.* = Expr{ .Multiply = m };
@@ -116,8 +124,10 @@ pub const Expr = union(ExprTy) {
     }
 
     pub fn createAdd(alloc: std.mem.Allocator, lhs: *Expr, rhs: *Expr) !*Expr {
+        const swapped = swap(lhs, rhs);
+
         const a = try alloc.create(add.AddExpression);
-        a.* = .{ .lhs = lhs, .rhs = rhs };
+        a.* = .{ .lhs = swapped.lhs, .rhs = swapped.rhs };
 
         const e = try alloc.create(Expr);
         e.* = Expr{ .Add = a };
@@ -127,6 +137,19 @@ pub const Expr = union(ExprTy) {
     pub fn createSub(alloc: std.mem.Allocator, lhs: *Expr, rhs: *Expr) !*Expr {
         const s = try alloc.create(sub.SubstractExpression);
         s.* = .{ .lhs = lhs, .rhs = rhs };
+
+        // x - 2 => (-2) + x
+        if (rhs.isConstant() and !lhs.isConstant()) {
+            const minus_one = try Expr.createLiteral(alloc, -1);
+            const neg_rhs = try Expr.createMul(alloc, minus_one, rhs);
+
+            const add_expr = try alloc.create(add.AddExpression);
+            add_expr.* = .{ .lhs = neg_rhs, .rhs = lhs };
+
+            const e = try alloc.create(Expr);
+            e.* = Expr{ .Add = add_expr };
+            return e;
+        }
 
         const e = try alloc.create(Expr);
         e.* = Expr{ .Substract = s };
@@ -152,6 +175,13 @@ pub const Expr = union(ExprTy) {
     pub fn isConstantValue(self: *const Expr, val: i32) bool {
         return switch (self.*) {
             Expr.Literal => |l| l == val,
+            else => false,
+        };
+    }
+    pub fn isLeftConstant(self: *const Expr) bool {
+        return switch (self.*) {
+            Expr.Multiply => |m| m.lhs.isConstant(),
+            Expr.Add => |a| a.lhs.isConstant(),
             else => false,
         };
     }

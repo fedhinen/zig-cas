@@ -27,21 +27,35 @@ pub const AddExpression = struct {
         const left_simp = try self.lhs.simplify(alloc);
         const right_simp = try self.rhs.simplify(alloc);
 
+        const swapped = expr.Expr.swap(left_simp, right_simp);
+        const lhs = swapped.lhs;
+        const rhs = swapped.rhs;
+
         // Constant folding
-        if (left_simp.isConstant() and right_simp.isConstant()) {
-            const left_val = left_simp.Literal;
-            const right_val = right_simp.Literal;
+        if (lhs.isConstant() and rhs.isConstant()) {
+            const left_val = lhs.Literal;
+            const right_val = rhs.Literal;
             return try expr.Expr.createLiteral(alloc, left_val + right_val);
         }
 
         // x + 0 => x and 0 + x => x
-        if (left_simp.isConstantValue(0)) return right_simp;
-        if (right_simp.isConstantValue(0)) return left_simp;
+        if (lhs.isConstantValue(0)) return rhs;
+        if (rhs.isConstantValue(0)) return lhs;
+
+        // (A * x) + (B * x) => (A + B) * x TODO
+        if (lhs.isLeftConstant() and rhs.isLeftConstant()) {
+            const left_const = lhs.Multiply.lhs.Literal;
+            const right_const = rhs.Multiply.lhs.Literal;
+            const new_const = try expr.Expr.createLiteral(alloc, left_const + right_const);
+
+            const expr_assoc = try expr.Expr.createMul(alloc, new_const, lhs.Multiply.rhs);
+            return try expr_assoc.simplify(alloc);
+        }
 
         // Combine like terms: x + x => 2 * x TODO
 
         // terminos semejantes: 2*x + 3*x => 5*x TODO
 
-        return try expr.Expr.createAdd(alloc, left_simp, right_simp);
+        return try expr.Expr.createAdd(alloc, lhs, rhs);
     }
 };

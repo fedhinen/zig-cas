@@ -30,7 +30,7 @@ pub fn main(init: std.process.Init) !void {
     const x_expr = try Expr.createVar(arena, 'x');
 
     const first_expr = try Expr.createMul(arena, five_expr, x_expr);
-    const second_expr = try Expr.createMul(arena, twenty_expr, x_expr);
+    const second_expr = try Expr.createMul(arena, x_expr, twenty_expr);
 
     const full_expr = try Expr.createMul(arena, first_expr, second_expr);
 
