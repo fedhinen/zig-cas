@@ -28,4 +28,20 @@ pub const PowExpression = struct {
 
         return try std.fmt.allocPrint(alloc, "({s} ^ {s})", .{ base_str, exponent_str });
     }
+    pub fn simplify(self: *const PowExpression, alloc: std.mem.Allocator) !*expr.Expr {
+        const base_simp = try self.base.simplify(alloc);
+        const pow_simp = try self.exponent.simplify(alloc);
+
+        // Constant folding
+        if (base_simp.isConstant() and pow_simp.isConstant()) {
+            const left_val = base_simp.Literal;
+            const right_val = pow_simp.Literal;
+            return try expr.Expr.createLiteral(alloc, std.math.pow(i32, left_val, right_val));
+        }
+
+        if (pow_simp.isConstantValue(0)) return try expr.Expr.createLiteral(alloc, 1);
+        if (pow_simp.isConstantValue(1)) return base_simp;
+
+        return try expr.Expr.createPow(alloc, base_simp, pow_simp);
+    }
 };

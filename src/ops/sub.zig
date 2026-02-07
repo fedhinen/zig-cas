@@ -23,4 +23,29 @@ pub const SubstractExpression = struct {
 
         return try std.fmt.allocPrint(alloc, "({s} - {s})", .{ left_str, right_str });
     }
+    pub fn simplify(self: *const SubstractExpression, alloc: std.mem.Allocator) !*expr.Expr {
+        const left_simp = try self.lhs.simplify(alloc);
+        const right_simp = try self.rhs.simplify(alloc);
+
+        // Constant folding
+        if (left_simp.isConstant() and right_simp.isConstant()) {
+            const left_val = left_simp.Literal;
+            const right_val = right_simp.Literal;
+            return try expr.Expr.createLiteral(alloc, left_val - right_val);
+        }
+
+        // x + 0 => x and 0 + x => x
+        if (right_simp.isConstantValue(0)) return left_simp;
+        if (left_simp.isConstantValue(0)) {
+            const minus_one = try expr.Expr.createLiteral(alloc, -1);
+            const neg_rhs = try expr.Expr.createMul(alloc, minus_one, right_simp);
+            return neg_rhs;
+        }
+
+        // Combine like terms: x - x => 0 TODO
+
+        // terminos semejantes: 2*x - 3*x => -1 * x TODO
+
+        return try expr.Expr.createSub(alloc, left_simp, right_simp);
+    }
 };

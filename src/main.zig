@@ -1,9 +1,8 @@
 const std = @import("std");
-const Io = std.Io;
-
 const cas = @import("cas");
 const expr = @import("./ops/expr.zig");
 
+const Io = std.Io;
 const Expr = expr.Expr;
 
 pub fn main(init: std.process.Init) !void {
@@ -36,7 +35,8 @@ pub fn main(init: std.process.Init) !void {
     const full_expr = try Expr.createMul(arena, first_expr, second_expr);
 
     const test_derivative = try full_expr.derivative('x', arena);
-    const test_derivative_str = try test_derivative.string(arena);
+    const text_simplified = try test_derivative.simplify(arena);
+    const test_derivative_str = try text_simplified.string(arena);
 
     try stdout_writer.print("Test derivative, {s}\n", .{test_derivative_str});
 

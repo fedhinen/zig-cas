@@ -72,6 +72,18 @@ pub const Expr = union(ExprTy) {
         };
     }
 
+    pub fn simplify(self: *const Expr, alloc: std.mem.Allocator) std.mem.Allocator.Error!*Expr {
+        return switch (self.*) {
+            Expr.Variable => try createVar(alloc, self.Variable),
+            Expr.Literal => try createLiteral(alloc, self.Literal),
+            Expr.Add => |e| try e.simplify(alloc),
+            Expr.Substract => |e| try e.simplify(alloc),
+            Expr.Multiply => |e| try e.simplify(alloc),
+            Expr.Divide => |e| try e.simplify(alloc),
+            Expr.Pow => |e| try e.simplify(alloc),
+        };
+    }
+
     // helpers
     pub fn createLiteral(alloc: std.mem.Allocator, val: i32) !*Expr {
         const e = try alloc.create(Expr);
@@ -129,90 +141,18 @@ pub const Expr = union(ExprTy) {
         e.* = Expr{ .Divide = d };
         return e;
     }
-};
 
-// fn isLiteral(self: *const Expr, val: i32) bool {
-//     return switch (self.*) {
-//         Expr.Literal => |l| l == val,
-//         else => false,
-//     };
-// }
-// fn simplify(self: *const Expr, alloc: std.mem.Allocator) !Expr {
-//     return switch (self.*) {
-//         Expr.Variable, Expr.Literal => self.*,
-//         Expr.Binary => |b| {
-//             const left_expr = try b.left.simplify(alloc);
-//             const right_expr = try b.right.simplify(alloc);
-//
-//             // constantes
-//             if (left_expr == .Literal and right_expr == .Literal) {
-//                 const left_val = left_expr.Literal;
-//                 const right_val = right_expr.Literal;
-//
-//                 const val = switch (b.op) {
-//                     BinOp.Add => left_val + right_val,
-//                     BinOp.Subtract => left_val - right_val,
-//                     BinOp.Multiply => left_val * right_val,
-//                     BinOp.Divide => @divFloor(left_val, right_val),
-//                     BinOp.Power => std.math.pow(i32, left_val, right_val),
-//                 };
-//
-//                 return Expr{ .Literal = val };
-//             }
-//
-//             // identidades
-//             switch (b.op) {
-//                 BinOp.Add => {
-//                     // x + 0 = x
-//                     if (right_expr.isLiteral(0)) return left_expr;
-//                     // 0 + x = x
-//                     if (left_expr.isLiteral(0)) return right_expr;
-//                 },
-//                 BinOp.Subtract => {
-//                     // x - 0 = x
-//                     if (right_expr.isLiteral(0)) return left_expr;
-//                     // 0 - x = -x
-//
-//                     if (left_expr.isLiteral(0)) {
-//                         const neg_one = try alloc.create(Expr);
-//                         neg_one.* = Expr{ .Literal = -1 };
-//
-//                         const right_expr_neg = try alloc.create(Expr);
-//                         right_expr_neg.* = right_expr;
-//
-//                         return Expr{ .Binary = .{ .op = .Multiply, .left = neg_one, .right = right_expr_neg } };
-//                     }
-//
-//                     // x - x = 0 comparar arboles completos TODO
-//                 },
-//                 BinOp.Multiply => {
-//                     if (left_expr.isLiteral(0) or right_expr.isLiteral(0)) return Expr{ .Literal = 0 };
-//
-//                     if (left_expr.isLiteral(1)) return right_expr;
-//
-//                     if (right_expr.isLiteral(1)) return left_expr;
-//                 },
-//                 BinOp.Divide => {
-//                     if (right_expr.isLiteral(1)) return left_expr;
-//
-//                     // que sucede con x/0, panic?
-//                     // que sucede con x/x = 1, comparacion de expr pendiente
-//                 },
-//                 BinOp.Power => {
-//                     // x ^ 0 = 1
-//                     if (right_expr.isLiteral(0)) return Expr{ .Literal = 1 };
-//                     // x ^ 1 = x
-//                     if (right_expr.isLiteral(1)) return left_expr;
-//                 },
-//             }
-//
-//             const left_ptr = try alloc.create(Expr);
-//             left_ptr.* = left_expr;
-//
-//             const right_ptr = try alloc.create(Expr);
-//             right_ptr.* = right_expr;
-//
-//             return Expr{ .Binary = BinaryExpr{ .left = left_ptr, .right = right_ptr, .op = b.op } };
-//         },
-//     };
-// }
+    // is?
+    pub fn isConstant(self: *const Expr) bool {
+        return switch (self.*) {
+            Expr.Literal => true,
+            else => false,
+        };
+    }
+    pub fn isConstantValue(self: *const Expr, val: i32) bool {
+        return switch (self.*) {
+            Expr.Literal => |l| l == val,
+            else => false,
+        };
+    }
+};

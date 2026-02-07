@@ -27,4 +27,26 @@ pub const MultiplyExpression = struct {
 
         return try std.fmt.allocPrint(alloc, "({s} * {s})", .{ left_str, right_str });
     }
+    pub fn simplify(self: *const MultiplyExpression, alloc: std.mem.Allocator) !*expr.Expr {
+        const left_simp = try self.lhs.simplify(alloc);
+        const right_simp = try self.rhs.simplify(alloc);
+
+        // Constant folding
+        if (left_simp.isConstant() and right_simp.isConstant()) {
+            const left_val = left_simp.Literal;
+            const right_val = right_simp.Literal;
+            return try expr.Expr.createLiteral(alloc, left_val * right_val);
+        }
+
+        // x + 0 => x and 0 + x => x
+        if (left_simp.isConstantValue(0) or right_simp.isConstantValue(0)) return try expr.Expr.createLiteral(alloc, 0);
+        if (left_simp.isConstantValue(1)) return right_simp;
+        if (right_simp.isConstantValue(1)) return left_simp;
+
+        // Combine like terms: x * x => x ^ 2 TODO
+
+        // terminos semejantes: 2*x * 3*x => 6x^2 TODO
+
+        return try expr.Expr.createMul(alloc, left_simp, right_simp);
+    }
 };
