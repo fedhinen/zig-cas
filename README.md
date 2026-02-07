@@ -25,3 +25,10 @@ Programarlo no se que tan complicado es
 
 ---
 Decidi reorganizar el codigo antes de seguir avanzando, porque se estaba volviendo un caos extender las cosas, ya esta mejor creo yo, como para empezar la simplificación nuevamente
+
+Ya hice la reimplementacion de la simplificacion que tenia en la nueva estructura, no fue complicado, lo complicado es hacerla bien jaja, pero es un buen avance, terminando este caso voy a empezar a trabajar con TDD, me parece adecuado 
+
+cas on git main via zig v0.16.0-dev.2490+fce7878a9 took 52s 
+> zig build run
+info: arg: /home/fedhinen/Desktop/cas/zig-out/bin/cas
+Test derivative, ((5 * (20 * x)) + ((5 * x) * 20))
