@@ -53,7 +53,9 @@ test "d(x)/dx = 1" {
     const derivative = try x_expr.derivative('x', allocator);
     const simplified = try derivative.simplify(allocator);
 
-    try std.testing.expect(simplified.isConstantValue(1));
+    const expected = try Expr.createLiteral(allocator, 1);
+
+    try std.testing.expect(simplified.isEqual(expected));
 }
 
 test "d(x)/dy = 0" {
@@ -66,7 +68,9 @@ test "d(x)/dy = 0" {
     const derivative = try x_expr.derivative('y', allocator);
     const simplified = try derivative.simplify(allocator);
 
-    try std.testing.expect(simplified.isConstantValue(0));
+    const expected = try Expr.createLiteral(allocator, 0);
+
+    try std.testing.expect(simplified.isEqual(expected));
 }
 
 // d(cx)/dx = c * d(x)/dx = c * 1 = c
@@ -83,7 +87,9 @@ test "d(5x)/dx = 5" {
     const derivative = try expr_test.derivative('x', allocator);
     const simplified = try derivative.simplify(allocator);
 
-    try std.testing.expect(simplified.isConstantValue(5));
+    const expected = try Expr.createLiteral(allocator, 5);
+
+    try std.testing.expect(simplified.isEqual(expected));
 }
 
 // d(x^n)/dx = n * x^(n-1)
@@ -100,10 +106,11 @@ test "d(x^4)/dx = (4 * (x ^ 3))" {
     const derivative = try expr_test.derivative('x', allocator);
     const simplified = try derivative.simplify(allocator);
 
-    const stringified = try simplified.string(allocator);
-    const expected = "(4 * (x ^ 3))";
-    const is_equal = std.mem.eql(u8, stringified, expected);
-    try std.testing.expect(is_equal);
+    const three_expr = try Expr.createLiteral(allocator, 3);
+    const inner_pow = try Expr.createPow(allocator, x_expr, three_expr);
+    const expected_expr = try Expr.createMul(allocator, four_expr, inner_pow);
+
+    try std.testing.expect(simplified.isEqual(expected_expr));
 }
 
 // d(f(x) ^ n)/dx = n * (f(x) ^ (n-1)) * f'(x)
@@ -124,10 +131,13 @@ test "d((5x + 1) ^ 3)/dx = (3 * ((5x + 1) ^ 2) * 5) = (15 * (1 + (5 * x)) ^ 2))"
     const derivative = try expr_test.derivative('x', allocator);
     const simplified = try derivative.simplify(allocator);
 
-    const stringified = try simplified.string(allocator);
-    const expected = "(15 * ((1 + (5 * x)) ^ 2))";
-    const is_equal = std.mem.eql(u8, stringified, expected);
-    try std.testing.expect(is_equal);
+    const fiveteen_expr = try Expr.createLiteral(allocator, 15);
+    const inner_base = try Expr.createAdd(allocator, one_expr, five_x_expr);
+    const two_expr = try Expr.createLiteral(allocator, 2);
+    const inner_pow = try Expr.createPow(allocator, inner_base, two_expr);
+    const expected_expr = try Expr.createMul(allocator, fiveteen_expr, inner_pow);
+
+    try std.testing.expect(simplified.isEqual(expected_expr));
 }
 
 // d(f(x) * g(x))/dx = f'(x) * g(x) + f(x) * g'(x)
@@ -149,8 +159,87 @@ test "d((5x + 1) * (x^3))/dx = ((5 * (x ^ 3)) + ((1 + (5 * x)) * (3 * (x ^ 2))))
     const derivative = try expr_test.derivative('x', allocator);
     const simplified = try derivative.simplify(allocator);
 
-    const stringified = try simplified.string(allocator);
-    const expected = "((5 * (x ^ 3)) + ((1 + (5 * x)) * (3 * (x ^ 2))))";
-    const is_equal = std.mem.eql(u8, stringified, expected);
-    try std.testing.expect(is_equal);
+    const two_expr = try Expr.createLiteral(allocator, 2);
+    const x_pow_2_expr = try Expr.createPow(allocator, x_expr, two_expr);
+    const three_x_pow_2_expr = try Expr.createMul(allocator, three_expr, x_pow_2_expr);
+    const one_plus_5x_expr = try Expr.createAdd(allocator, one_expr, five_x_expr);
+    const right_term_expr = try Expr.createMul(allocator, one_plus_5x_expr, three_x_pow_2_expr);
+    const five_x_pow_3_expr = try Expr.createMul(allocator, five_expr, x_pow_3_expr);
+    const expected_expr = try Expr.createAdd(allocator, five_x_pow_3_expr, right_term_expr);
+
+    try std.testing.expect(simplified.isEqual(expected_expr));
+}
+test "Expr.is" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator: std.mem.Allocator = arena.allocator();
+
+    const five_expr = try Expr.createLiteral(allocator, 5);
+    const x_expr = try Expr.createVar(allocator, 'x');
+    const mul_expr = try Expr.createMul(allocator, five_expr, x_expr);
+    const pow_expr = try Expr.createPow(allocator, five_expr, x_expr);
+    const add_expr = try Expr.createAdd(allocator, five_expr, x_expr);
+    const sub_expr = try Expr.createSub(allocator, five_expr, x_expr);
+    const div_expr = try Expr.createDiv(allocator, five_expr, x_expr);
+
+    try std.testing.expect(five_expr.is(.Literal));
+    try std.testing.expect(x_expr.is(.Variable));
+    try std.testing.expect(mul_expr.is(.Multiply));
+    try std.testing.expect(pow_expr.is(.Pow));
+    try std.testing.expect(add_expr.is(.Add));
+    try std.testing.expect(sub_expr.is(.Substract));
+    try std.testing.expect(div_expr.is(.Divide));
+}
+
+test "Expr.isEqual: 5 * x" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator: std.mem.Allocator = arena.allocator();
+
+    const five_expr = try Expr.createLiteral(allocator, 5);
+    const x_expr = try Expr.createVar(allocator, 'x');
+    const expr1 = try Expr.createMul(allocator, five_expr, x_expr);
+    const expr2 = try Expr.createMul(allocator, five_expr, x_expr);
+
+    try std.testing.expect(expr1.isEqual(expr2));
+}
+
+test "Expr.isEqual: 5 * x != 5 * y" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator: std.mem.Allocator = arena.allocator();
+
+    const five_expr = try Expr.createLiteral(allocator, 5);
+    const x_expr = try Expr.createVar(allocator, 'x');
+    const y_expr = try Expr.createVar(allocator, 'y');
+    const expr1 = try Expr.createMul(allocator, five_expr, x_expr);
+    const expr2 = try Expr.createMul(allocator, five_expr, y_expr);
+
+    try std.testing.expect(!expr1.isEqual(expr2));
+}
+
+test "Expr.isEqual: (((5 + x) * (2 + y)) ^ (10 + w))" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator: std.mem.Allocator = arena.allocator();
+
+    const five_expr = try Expr.createLiteral(allocator, 5);
+    const x_expr = try Expr.createVar(allocator, 'x');
+    const two_expr = try Expr.createLiteral(allocator, 2);
+    const y_expr = try Expr.createVar(allocator, 'y');
+    const ten_expr = try Expr.createLiteral(allocator, 10);
+    const w_expr = try Expr.createVar(allocator, 'w');
+
+    const inner_add1 = try Expr.createAdd(allocator, five_expr, x_expr);
+    const inner_add2 = try Expr.createAdd(allocator, two_expr, y_expr);
+    const inner_pow = try Expr.createAdd(allocator, ten_expr, w_expr);
+    const mul_expr = try Expr.createMul(allocator, inner_add1, inner_add2);
+    const pow_expr1 = try Expr.createPow(allocator, mul_expr, inner_pow);
+    const pow_expr2 = try Expr.createPow(allocator, mul_expr, inner_pow);
+
+    try std.testing.expect(pow_expr1.isEqual(pow_expr2));
 }

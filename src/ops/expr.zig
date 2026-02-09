@@ -84,6 +84,50 @@ pub const Expr = union(ExprTy) {
         };
     }
 
+    pub fn isEqual(self: *const Expr, other: *const Expr) bool {
+        // Comparar si son literales
+        if (self.is(.Literal) and other.is(.Literal)) {
+            return self.Literal == other.Literal;
+        }
+        // Comparar si son variables
+        if (self.is(.Variable) and other.is(.Variable)) {
+            return self.Variable == other.Variable;
+        }
+
+        if (self.is(.Pow) and other.is(.Pow)) {
+            const self_pow = self.Pow;
+            const other_pow = other.Pow;
+            return self_pow.base.isEqual(other_pow.base) and self_pow.exponent.isEqual(other_pow.exponent);
+        }
+
+        // comparar
+        if (self.is(.Add) and other.is(.Add)) {
+            const self_add = self.Add;
+            const other_add = other.Add;
+            return self_add.lhs.isEqual(other_add.lhs) and self_add.rhs.isEqual(other_add.rhs);
+        }
+
+        if (self.is(.Substract) and other.is(.Substract)) {
+            const self_sub = self.Substract;
+            const other_sub = other.Substract;
+            return self_sub.lhs.isEqual(other_sub.lhs) and self_sub.rhs.isEqual(other_sub.rhs);
+        }
+
+        if (self.is(.Multiply) and other.is(.Multiply)) {
+            const self_mul = self.Multiply;
+            const other_mul = other.Multiply;
+            return self_mul.lhs.isEqual(other_mul.lhs) and self_mul.rhs.isEqual(other_mul.rhs);
+        }
+
+        if (self.is(.Divide) and other.is(.Divide)) {
+            const self_div = self.Divide;
+            const other_div = other.Divide;
+            return self_div.lhs.isEqual(other_div.lhs) and self_div.rhs.isEqual(other_div.rhs);
+        }
+
+        return false;
+    }
+
     // helpers
     pub fn createLiteral(alloc: std.mem.Allocator, val: i32) !*Expr {
         const e = try alloc.create(Expr);
@@ -166,12 +210,25 @@ pub const Expr = union(ExprTy) {
     }
 
     // is?
+    pub fn is(self: *const Expr, ty: ExprTy) bool {
+        return switch (self.*) {
+            Expr.Variable => ty == .Variable,
+            Expr.Literal => ty == .Literal,
+            Expr.Add => ty == .Add,
+            Expr.Substract => ty == .Substract,
+            Expr.Multiply => ty == .Multiply,
+            Expr.Divide => ty == .Divide,
+            Expr.Pow => ty == .Pow,
+        };
+    }
+
     pub fn isConstant(self: *const Expr) bool {
         return switch (self.*) {
             Expr.Literal => true,
             else => false,
         };
     }
+
     pub fn isConstantValue(self: *const Expr, val: i32) bool {
         return switch (self.*) {
             Expr.Literal => |l| l == val,
