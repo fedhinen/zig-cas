@@ -348,3 +348,27 @@ test "Simplify (10 * x) - (10 * x) => 0" {
 
     try std.testing.expect(simplified.isEqual(expected));
 }
+
+test "Simplify (x^2) * (x^3) => x^5" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+
+    const allocator: std.mem.Allocator = arena.allocator();
+
+    const x_expr = try Expr.createVar(allocator, 'x');
+    const two_expr = try Expr.createLiteral(allocator, 2);
+    const three_expr = try Expr.createLiteral(allocator, 3);
+    const x_pow_2_expr = try Expr.createPow(allocator, x_expr, two_expr);
+    const x_pow_3_expr = try Expr.createPow(allocator, x_expr, three_expr);
+    const mul_expr = try Expr.createMul(allocator, x_pow_2_expr, x_pow_3_expr);
+
+    const simplified = try mul_expr.simplify(allocator);
+
+    const simplified_string = try simplified.string(allocator);
+    std.debug.print("Simplified expression: {s}\n", .{simplified_string});
+
+    const five_expr = try Expr.createLiteral(allocator, 5);
+    const expected = try Expr.createPow(allocator, x_expr, five_expr);
+
+    try std.testing.expect(simplified.isEqual(expected));
+}
