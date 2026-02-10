@@ -45,3 +45,13 @@ ahora hay que agregar mas casos para asegurar que funcione y ver que no funciona
 Bueno, ya tengo con el proyecto un poco mas de cuatro dias, ya organice el codigo, siento que es mas facil de entender, algunos casos ya los estuve probando, cree varios test, pero lo que falta ahora es ampliar la simplificación, necesito implementar una función .isEqual, que me permita comparar dos arboles de expresiones y ver si son iguales, para poder simplificar mejor, algunas reglas de exponentes, f(x) ^ n * f(x) ^ m = f(x) ^ (n + m), y cosas así, tambien ir revisando casos con divisiones, no he querido porque siento que sera un poco mas complicado jaja, pero bueno, es parte del proceso, igual no tengo prisa, quiero hacerlo bien
 
 - [x] Implementar .isEqual para comparar dos arboles de expresiones 
+
+---
+- [ ] Implementar resta como una suma
+- [ ] Implementar división como una multiplicación por el inverso
+- [ ] Implementar reglas de exponentes para simplificar expresiones con potencias
+- [ ] Agregar mas casos de prueba para asegurar que la simplificación y derivación funcionen correctamente
+- [ ] Mantener consistencia, nunca operaciones solas, siempre con una constante a la izquierda 1 * x, 0 + x, etc
+- [ ] Implementar mas funciones, como trigonométricas, logaritmos, etc
+- [ ] Encontrar raices de una funcion de primer grado
+- [ ] Encontrar raices de una funcion de segundo grado
