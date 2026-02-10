@@ -42,8 +42,17 @@ pub const AddExpression = struct {
         if (lhs.isConstantValue(0)) return rhs;
         if (rhs.isConstantValue(0)) return lhs;
 
-        // (A * x) + (B * x) => (A + B) * x TODO
+        // (A * f(x)) + (B * f(x)) => (A + B) * f(x)
         if (lhs.isLeftConstant() and rhs.isLeftConstant()) {
+            if (!lhs.is(.Multiply) or !rhs.is(.Multiply))
+                return try expr.Expr.createAdd(alloc, lhs, rhs);
+
+            const left_mul = lhs.Multiply;
+            const right_mul = rhs.Multiply;
+
+            if (!left_mul.rhs.isEqual(right_mul.rhs))
+                return try expr.Expr.createAdd(alloc, lhs, rhs);
+
             const left_const = lhs.Multiply.lhs.Literal;
             const right_const = rhs.Multiply.lhs.Literal;
             const new_const = try expr.Expr.createLiteral(alloc, left_const + right_const);
@@ -51,10 +60,6 @@ pub const AddExpression = struct {
             const expr_assoc = try expr.Expr.createMul(alloc, new_const, lhs.Multiply.rhs);
             return try expr_assoc.simplify(alloc);
         }
-
-        // Combine like terms: x + x => 2 * x TODO
-
-        // terminos semejantes: 2*x + 3*x => 5*x TODO
 
         return try expr.Expr.createAdd(alloc, lhs, rhs);
     }

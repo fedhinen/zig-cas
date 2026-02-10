@@ -42,9 +42,27 @@ pub const SubstractExpression = struct {
             return neg_rhs;
         }
 
-        // Combine like terms: x - x => 0 TODO
+        if (left_simp.isEqual(right_simp)) {
+            return try expr.Expr.createLiteral(alloc, 0);
+        }
 
-        // terminos semejantes: 2*x - 3*x => -1 * x TODO
+        if (left_simp.isLeftConstant() and right_simp.isLeftConstant()) {
+            if (!left_simp.is(.Multiply) or !right_simp.is(.Multiply))
+                return try expr.Expr.createSub(alloc, left_simp, right_simp);
+
+            const left_mul = left_simp.Multiply;
+            const right_mul = right_simp.Multiply;
+
+            if (!left_mul.rhs.isEqual(right_mul.rhs))
+                return try expr.Expr.createSub(alloc, left_simp, right_simp);
+
+            const left_const = left_mul.lhs.Literal;
+            const right_const = right_mul.lhs.Literal;
+            const new_const = try expr.Expr.createLiteral(alloc, left_const - right_const);
+
+            const expr_assoc = try expr.Expr.createMul(alloc, new_const, left_mul.rhs);
+            return expr_assoc;
+        }
 
         return try expr.Expr.createSub(alloc, left_simp, right_simp);
     }

@@ -47,21 +47,63 @@ pub const MultiplyExpression = struct {
         if (lhs.isConstantValue(1)) return rhs;
         if (rhs.isConstantValue(1)) return lhs;
 
-        // A * (B * x) => (A * B) * x TODO
+        // A * (B * x) => (A * B) * x, A is lhs, B is rhs
         if (lhs.isConstant() and rhs.isLeftConstant()) {
             const left_val = lhs.Literal;
-            const right_const = rhs.Multiply.lhs.Literal;
-            const new_const = try expr.Expr.createLiteral(alloc, left_val * right_const);
 
-            const expr_assoc = try expr.Expr.createMul(alloc, new_const, rhs.Multiply.rhs);
+            if (!rhs.is(.Multiply))
+                return try expr.Expr.createMul(alloc, lhs, rhs);
+
+            const right_const = rhs.Multiply;
+
+            const new_const = try expr.Expr.createLiteral(alloc, left_val * right_const.lhs.Literal);
+
+            const expr_assoc = try expr.Expr.createMul(alloc, new_const, right_const.rhs);
 
             return try expr_assoc.simplify(alloc);
         }
 
-        // Combine like terms: x * x => x ^ 2 TODO
+        // Terminos semejantes: 2 * x * 3 => 6 * x
+        // (A * f(x)) * (B * f(x)) => (A * B) * f(x)^2
+        if (lhs.is(.Multiply) and rhs.is(.Multiply)) {
+            if (!lhs.Multiply.lhs.isConstant() or !rhs.Multiply.lhs.isConstant())
+                return try expr.Expr.createMul(alloc, lhs, rhs);
 
-        // terminos semejantes: 2*x * 3*x => 6x^2 TODO
+            if (!lhs.Multiply.rhs.isEqual(rhs.Multiply.rhs))
+                return try expr.Expr.createMul(alloc, lhs, rhs);
 
+            if (!lhs.Multiply.rhs.isEqual(rhs.Multiply.rhs))
+                return try expr.Expr.createMul(alloc, lhs, rhs);
+
+            const left_const = lhs.Multiply.lhs.Literal;
+            const right_const = rhs.Multiply.lhs.Literal;
+            const new_const = try expr.Expr.createLiteral(alloc, left_const * right_const);
+
+            const two = try expr.Expr.createLiteral(alloc, 2);
+            const pow_expr = try expr.Expr.createPow(alloc, lhs.Multiply.rhs, two);
+            const expr_assoc = try expr.Expr.createMul(alloc, new_const, pow_expr);
+            return try expr_assoc.simplify(alloc);
+        }
+
+        // Distributive property: (A + B) * (C + D) => (A * (C + D)) + (B * (C + D)) => (A * C) + (A * D) + (B * C) + (B * D)
+        if (lhs.is(.Add) and rhs.is(.Add)) {
+            const a = lhs.Add.lhs;
+            const b = lhs.Add.rhs;
+            const c = rhs.Add.lhs;
+            const d = rhs.Add.rhs;
+
+            const ac = try expr.Expr.createMul(alloc, a, c);
+            const ad = try expr.Expr.createMul(alloc, a, d);
+            const bc = try expr.Expr.createMul(alloc, b, c);
+            const bd = try expr.Expr.createMul(alloc, b, d);
+
+            const ac_ad = try expr.Expr.createAdd(alloc, ac, ad);
+            const bc_bd = try expr.Expr.createAdd(alloc, bc, bd);
+
+            const ac_ad_bc_bd = try expr.Expr.createAdd(alloc, ac_ad, bc_bd);
+
+            return try ac_ad_bc_bd.simplify(alloc);
+        }
         return try expr.Expr.createMul(alloc, lhs, rhs);
     }
 };

@@ -2,51 +2,54 @@ const std = @import("std");
 const expr = @import("./expr.zig");
 
 pub const DivideExpression = struct {
-    lhs: *expr.Expr,
-    rhs: *expr.Expr,
+    numerator: *expr.Expr,
+    denominator: *expr.Expr,
 
     pub fn eval(self: *const DivideExpression, vars: *const std.AutoHashMap(u8, i32)) i32 {
-        const left_val = self.lhs.eval(vars);
-        const right_val = self.rhs.eval(vars);
+        const numerator_val = self.numerator.eval(vars);
+        const denominator_val = self.denominator.eval(vars);
 
-        return left_val / right_val;
+        return numerator_val / denominator_val;
     }
     pub fn derivative(self: *const DivideExpression, vars: u8, alloc: std.mem.Allocator) !*expr.Expr {
-        const left_deriv = try self.lhs.derivative(vars, alloc);
-        const right_deriv = try self.rhs.derivative(vars, alloc);
+        const numerator_deriv = try self.numerator.derivative(vars, alloc);
+        const denominator_deriv = try self.denominator.derivative(vars, alloc);
 
-        const n1_expr = try expr.Expr.createMul(alloc, left_deriv, self.rhs);
-        const n2_expr = try expr.Expr.createMul(alloc, self.lhs, right_deriv);
+        const n1_expr = try expr.Expr.createMul(alloc, numerator_deriv, self.denominator);
+        const n2_expr = try expr.Expr.createMul(alloc, self.numerator, denominator_deriv);
         const numerator_expr = try expr.Expr.createSub(alloc, n1_expr, n2_expr);
-        const denominator_expr = try expr.Expr.createMul(alloc, self.rhs, self.rhs);
+        const denominator_expr = try expr.Expr.createMul(alloc, self.denominator, self.denominator);
         const div_expr = try expr.Expr.createDiv(alloc, numerator_expr, denominator_expr);
 
         return div_expr;
     }
     pub fn string(self: *const DivideExpression, alloc: std.mem.Allocator) ![]const u8 {
-        const left_str = try self.lhs.string(alloc);
-        const right_str = try self.rhs.string(alloc);
+        const numerator_str = try self.numerator.string(alloc);
+        const denominator_str = try self.denominator.string(alloc);
 
-        return try std.fmt.allocPrint(alloc, "({s} / {s})", .{ left_str, right_str });
+        return try std.fmt.allocPrint(alloc, "({s} / {s})", .{ numerator_str, denominator_str });
     }
     pub fn simplify(self: *const DivideExpression, alloc: std.mem.Allocator) !*expr.Expr {
-        const left_simp = try self.lhs.simplify(alloc);
-        const right_simp = try self.rhs.simplify(alloc);
+        const numerator_simp = try self.numerator.simplify(alloc);
+        const denominator_simp = try self.denominator.simplify(alloc);
 
         // Constant folding
-        if (left_simp.isConstant() and right_simp.isConstant()) {
-            const left_val = left_simp.Literal;
-            const right_val = right_simp.Literal;
-            return try expr.Expr.createLiteral(alloc, @divFloor(left_val, right_val));
+        if (numerator_simp.isConstant() and denominator_simp.isConstant()) {
+            const numerator_val = numerator_simp.Literal;
+            const denominator_val = denominator_simp.Literal;
+            return try expr.Expr.createLiteral(alloc, @divFloor(numerator_val, denominator_val));
         }
 
-        //if (right_simp.isConstantValue(0)) return right_simp; // TODO error
-        if (right_simp.isConstantValue(1)) return left_simp;
+        //if (denominator_simp.isConstantValue(0)) return right_simp; // TODO error
+        if (denominator_simp.isConstantValue(1)) return numerator_simp;
 
         // Combine like terms: x / x => 1 TODO
+        if (numerator_simp.isEqual(denominator_simp)) {
+            return try expr.Expr.createLiteral(alloc, 1);
+        }
 
         // terminos semejantes: 2*x + 3*x => 5*x TODO
 
-        return try expr.Expr.createDiv(alloc, left_simp, right_simp);
+        return try expr.Expr.createDiv(alloc, numerator_simp, denominator_simp);
     }
 };

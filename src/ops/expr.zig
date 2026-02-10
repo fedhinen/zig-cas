@@ -122,7 +122,7 @@ pub const Expr = union(ExprTy) {
         if (self.is(.Divide) and other.is(.Divide)) {
             const self_div = self.Divide;
             const other_div = other.Divide;
-            return self_div.lhs.isEqual(other_div.lhs) and self_div.rhs.isEqual(other_div.rhs);
+            return self_div.numerator.isEqual(other_div.numerator) and self_div.denominator.isEqual(other_div.denominator);
         }
 
         return false;
@@ -202,7 +202,7 @@ pub const Expr = union(ExprTy) {
 
     pub fn createDiv(alloc: std.mem.Allocator, lhs: *Expr, rhs: *Expr) !*Expr {
         const d = try alloc.create(div.DivideExpression);
-        d.* = .{ .lhs = lhs, .rhs = rhs };
+        d.* = .{ .numerator = lhs, .denominator = rhs };
 
         const e = try alloc.create(Expr);
         e.* = Expr{ .Divide = d };
