@@ -142,6 +142,7 @@ test "d((5x + 1) ^ 3)/dx = (3 * ((5x + 1) ^ 2) * 5) = (15 * (1 + (5 * x)) ^ 2))"
 
 // d(f(x) * g(x))/dx = f'(x) * g(x) + f(x) * g'(x)
 // Se puede simplificar aun mas, 5x^3 + 3x^2 + 15x^3 = 20x^3 + 3x^2
+// TODO: Implementar la simplificacion de terminos semejantes para que el resultado sea el mas simple posible
 test "d((5x + 1) * (x^3))/dx = ((5 * (x ^ 3)) + ((1 + (5 * x)) * (3 * (x ^ 2))))" {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -363,9 +364,6 @@ test "Simplify (x^2) * (x^3) => x^5" {
     const mul_expr = try Expr.createMul(allocator, x_pow_2_expr, x_pow_3_expr);
 
     const simplified = try mul_expr.simplify(allocator);
-
-    const simplified_string = try simplified.string(allocator);
-    std.debug.print("Simplified expression: {s}\n", .{simplified_string});
 
     const five_expr = try Expr.createLiteral(allocator, 5);
     const expected = try Expr.createPow(allocator, x_expr, five_expr);

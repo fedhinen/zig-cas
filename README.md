@@ -49,8 +49,8 @@ Bueno, ya tengo con el proyecto un poco mas de cuatro dias, ya organice el codig
 ---
 - [ ] Implementar resta como una suma
 - [ ] Implementar división como una multiplicación por el inverso
-- [ ] Implementar reglas de exponentes para simplificar expresiones con potencias
-- [ ] Agregar mas casos de prueba para asegurar que la simplificación y derivación funcionen correctamente
+- [x] Implementar reglas de exponentes para simplificar expresiones con potencias
+- [x] Agregar mas casos de prueba para asegurar que la simplificación y derivación funcionen correctamente
 - [ ] Mantener consistencia, nunca operaciones solas, siempre con una constante a la izquierda 1 * x, 0 + x, etc
 - [ ] Implementar mas funciones, como trigonométricas, logaritmos, etc
 - [ ] Encontrar raices de una funcion de primer grado

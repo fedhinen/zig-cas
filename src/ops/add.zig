@@ -32,7 +32,7 @@ pub const AddExpression = struct {
         const rhs = swapped.rhs;
 
         // Constant folding
-        if (lhs.isConstant() and rhs.isConstant()) {
+        if (lhs.is(.Literal) and rhs.is(.Literal)) {
             const left_val = lhs.Literal;
             const right_val = rhs.Literal;
             return try expr.Expr.createLiteral(alloc, left_val + right_val);
@@ -42,23 +42,27 @@ pub const AddExpression = struct {
         if (lhs.isConstantValue(0)) return rhs;
         if (rhs.isConstantValue(0)) return lhs;
 
-        // (A * f(x)) + (B * f(x)) => (A + B) * f(x)
-        if (lhs.isLeftConstant() and rhs.isLeftConstant()) {
-            if (!lhs.is(.Multiply) or !rhs.is(.Multiply))
-                return try expr.Expr.createAdd(alloc, lhs, rhs);
+        if (lhs.isEqual(rhs)) {
+            const two = try expr.Expr.createLiteral(alloc, 2);
 
+            return try expr.Expr.createMul(alloc, two, lhs);
+        }
+
+        // (A * f(x)) + (B * f(x)) => (A + B) * f(x)
+        if (lhs.is(.Multiply) and rhs.is(.Multiply)) {
             const left_mul = lhs.Multiply;
             const right_mul = rhs.Multiply;
 
-            if (!left_mul.rhs.isEqual(right_mul.rhs))
-                return try expr.Expr.createAdd(alloc, lhs, rhs);
+            const same_rhs = left_mul.rhs.isEqual(right_mul.rhs);
+            const rhs_is_constant = left_mul.lhs.is(.Literal) and right_mul.lhs.is(.Literal);
 
-            const left_const = lhs.Multiply.lhs.Literal;
-            const right_const = rhs.Multiply.lhs.Literal;
-            const new_const = try expr.Expr.createLiteral(alloc, left_const + right_const);
+            if (same_rhs and rhs_is_constant) {
+                const new_const = try expr.Expr.createLiteral(alloc, left_mul.lhs.Literal + right_mul.lhs.Literal);
 
-            const expr_assoc = try expr.Expr.createMul(alloc, new_const, lhs.Multiply.rhs);
-            return try expr_assoc.simplify(alloc);
+                const new_expr = try expr.Expr.createMul(alloc, new_const, left_mul.rhs);
+
+                return try new_expr.simplify(alloc);
+            }
         }
 
         return try expr.Expr.createAdd(alloc, lhs, rhs);
